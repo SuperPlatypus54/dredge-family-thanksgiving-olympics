@@ -9,6 +9,7 @@ const order = [...eventOrder, { id: 'overall', name: 'Overall' }];
 const rotationMs = 15_000;
 const start = performance.now();
 const find = id => document.getElementById(id);
+const stage = find('stream-stage');
 const board = find('stream-board');
 const overallBoard = find('stream-overall');
 const connection = find('stream-connection');
@@ -19,6 +20,12 @@ const sides = ['home', 'away'];
 const statusLabels = { upcoming: 'Scheduled', live: 'In play', final: 'Final' };
 let index = 0;
 let state = { draw: null, records: {}, revision: -1 };
+
+function fitStage() {
+  const { clientWidth, clientHeight } = document.body;
+  const scale = Math.min(clientWidth / stage.offsetWidth, clientHeight / stage.offsetHeight);
+  stage.style.setProperty('--stream-scale', scale);
+}
 
 function teamChip(id) {
   return `<span class="team-chip team-${id}" aria-hidden="true">${id}</span>`;
@@ -181,6 +188,8 @@ function tick() {
 find('stream-start').textContent = formatScheduleTime(TOURNAMENT_START);
 find('stream-catch-up').textContent = formatScheduleTime(CATCH_UP_START);
 find('stream-dinner').textContent = formatScheduleTime(DINNER_START);
+fitStage();
+window.addEventListener('resize', fitStage);
 setupFullscreen(null);
 render();
 tick();

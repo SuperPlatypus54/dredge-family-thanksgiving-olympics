@@ -1,5 +1,5 @@
 .stream-view {
-  --view: min(1vw, 1.7778vh);
+  --view: 19.2px;
   --section-gap: clamp(12px, calc(var(--view) * 1.45), 28px);
   --panel-pad: clamp(12px, calc(var(--view) * 1.23), 24px);
   --fixture-gap: clamp(5px, calc(var(--view) * .62), 12px);
@@ -7,7 +7,10 @@
   --cream: #fff6e9;
   --game: #825069;
   --game-light: #f4b8d3;
-  background: #2b1c2d;
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #19121b;
 }
 
 .stream-view[data-event="pool"] {
@@ -26,10 +29,15 @@
 }
 
 .stream-view .stream-stage {
+  position: absolute;
+  top: 50%;
+  left: 50%;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   gap: var(--section-gap);
-  height: 100dvh;
+  width: 1920px;
+  height: 1080px;
+  transform: translate(-50%, -50%) scale(var(--stream-scale, 0));
   padding: clamp(16px, calc(var(--view) * 2.04), 42px)
     clamp(20px, calc(var(--view) * 2.6), 52px);
   background:
@@ -438,80 +446,4 @@
 
 .stream-board[data-round-count="7"] .stream-round-label strong {
   font-size: 1.7em;
-}
-
-@media (max-width: 1050px), (max-height: 625px) {
-  .stream-view .stream-stage {
-    height: auto;
-    min-height: 100dvh;
-  }
-
-  .stream-rounds {
-    grid-auto-rows: minmax(82px, auto);
-  }
-}
-
-@media (max-width: 850px) {
-  .stream-view .stream-intro {
-    flex-wrap: wrap;
-  }
-
-  .stream-board {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .stream-table tbody :is(th, td) {
-    height: 42px;
-  }
-
-  .stream-view .stream-stage {
-    padding-inline: 13px;
-  }
-}
-
-@media (max-width: 575px) {
-  .stream-view .stream-intro {
-    align-items: start;
-    flex-direction: column;
-  }
-
-  .stream-feed {
-    align-self: stretch;
-  }
-
-  .stream-day {
-    align-self: stretch;
-    justify-content: space-between;
-  }
-
-  .stream-round {
-    grid-template-columns: 1fr;
-  }
-
-  .stream-round-label {
-    padding: 7px 9px;
-    place-content: start;
-    text-align: left;
-  }
-
-  .stream-round-label strong {
-    display: inline;
-    font-size: inherit;
-  }
-
-  .stream-round-matches {
-    grid-template-columns: 1fr;
-  }
-
-  .stream-match {
-    min-height: 78px;
-  }
-
-  .stream-overall .stream-table {
-    font-size: .92rem;
-  }
-
-  .stream-overall .stream-table :is(th, td) {
-    padding-inline: .34em;
-  }
 }
