@@ -313,6 +313,8 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .standings-table th:last-child, .standings-table td:last-child { padding-right: 14px; width: 43px; }
 .standings-table tbody tr + tr { border-top: 1px solid var(--line); }
 .standings-table tbody .team-chip { width: 20px; height: 21px; margin-right: 6px; font-size: .99rem; vertical-align: middle; }
+.standings-team { display: flex; align-items: center; gap: 7px; }
+.standings-table tbody .standings-team .team-chip { margin-right: 0; }
 .standings-table abbr { text-decoration: none; }
 .standings-table .is-champion { background: #edf1e3; }
 .standings-note { border-top: 1px solid var(--line); color: var(--muted); margin: 0; padding: 9px 13px 10px; font-size: .74rem; }

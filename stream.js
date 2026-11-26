@@ -102,7 +102,7 @@ function renderStandings(event, tournament, completed) {
 
   let note = 'Ranked by wins, then head-to-head. Points post when the event is final.';
   if (result.winner) {
-    note = `${teamName(result.winner)} wins ${event.name}.`;
+    note = `${event.name} champions are ${teamName(result.winner)}.`;
     if (!result.final) note += ` ${miniGameNote(tournament.tiebreaks, event.id)}`;
   } else if (result.complete) {
     note = miniGameNote(tournament.tiebreaks, event.id);
@@ -127,7 +127,7 @@ function renderOverall(tournament) {
     ? 'Provisional standings. Points count from finalized sports.'
     : 'Placement points appear when the first sport is final.';
   if (result.winner) {
-    note = `${teamName(result.winner)} wins the Thanksgiving Olympics.`;
+    note = `Thanksgiving Olympics champions are ${teamName(result.winner)}.`;
     if (!result.final) note += ` ${miniGameNote(tournament.tiebreaks, 'overall')}`;
   } else if (result.complete) {
     note = miniGameNote(tournament.tiebreaks, 'overall');

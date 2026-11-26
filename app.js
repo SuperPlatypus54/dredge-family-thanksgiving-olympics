@@ -38,6 +38,7 @@ const substituteNote = match => {
   return substitution ? `${substitution.player} fills in for ${substitution.forPlayer} on Team ${substitution.team}.` : '';
 };
 const chip = id => `<span class="team-chip team-${id}" aria-label="Team ${id}">${id}</span>`;
+const standingTeam = team => `<th scope="row"><span class="standings-team">${chip(team.id)} <span>${teamLabel(team)}</span></span></th>`;
 const badge = status => `<span class="match-status ${status}">${statusLabel[status]}</span>`;
 
 function timeMarkup(minute) {
@@ -100,7 +101,7 @@ function renderFixtures(matches, activeRound, rounds) {
 
 function resultLabel(standing, pending) {
   if (standing.winner) {
-    return `${teamName(standing.winner)} wins${standing.final ? '' : ' · Other places pending'}`;
+    return `${teamName(standing.winner)} won${standing.final ? '' : ' · Other places pending'}`;
   }
   return standing.complete ? 'Mini-games pending' : pending;
 }
@@ -132,7 +133,7 @@ function renderTiebreaks(container, scope) {
 function renderStandings(event, standing, completed) {
   $('standings-event').textContent = event.name;
   $('standings-rows').innerHTML = standing.rows.map(({ team, wins, losses, rank, points }) => `<tr${standing.winner?.id === team.id ? ' class="is-champion"' : ''}>
-    <td>${completed ? rank : '–'}</td><th scope="row">${chip(team.id)} ${teamLabel(team)}</th>
+    <td>${completed ? rank : '–'}</td>${standingTeam(team)}
     <td>${wins}</td><td>${losses}</td><td class="points-cell">${points ?? '–'}</td>
   </tr>`).join('');
   $('standings-note').textContent = resultLabel(standing, 'Points pending until sport matches finish.');
@@ -152,7 +153,7 @@ function renderOverall({ events, overall }) {
   }
   $('overall-result').textContent = resultLabel(overall, 'Sport results pending');
   $('overall-rows').innerHTML = overall.rows.map(({ team, rank, points, events: sportPoints }) => `<tr${overall.winner?.id === team.id ? ' class="is-champion"' : ''}>
-    <td>${anyPoints ? rank : '–'}</td><th scope="row">${chip(team.id)} ${teamLabel(team)}</th>
+    <td>${anyPoints ? rank : '–'}</td>${standingTeam(team)}
     ${EVENTS.map(event => `<td>${sportPoints[event.id] ?? '–'}</td>`).join('')}
     <td class="points-cell">${points}</td>
   </tr>`).join('');
