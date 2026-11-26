@@ -145,7 +145,7 @@ function renderStandings(event, standing, completed) {
     <td>${completed ? rank : '–'}</td>${standingTeam(team)}
     <td>${wins}</td><td>${losses}</td><td class="points-cell">${points ?? '–'}</td>
   </tr>`).join('');
-  $('standings-note').textContent = resultLabel(standing, 'Points pending until sport matches finish.');
+  $('standings-note').textContent = resultLabel(standing, 'Points are provisional until placements are settled.');
   renderTiebreaks('event', event.id);
 }
 
@@ -164,11 +164,11 @@ function renderOverall({ events, overall }) {
   $('overall-rows').innerHTML = overall.rows.map(({ team, rank, points, events: sportPoints }) => `<tr${overall.winner?.id === team.id ? ' class="is-champion"' : ''}>
     <td>${anyPoints ? rank : '–'}</td>${standingTeam(team)}
     ${EVENTS.map(event => `<td>${sportPoints[event.id] ?? '–'}</td>`).join('')}
-    <td class="points-cell">${points}</td>
+    <td class="points-cell">${anyPoints ? points : '–'}</td>
   </tr>`).join('');
   $('overall-note').textContent = overall.final
     ? 'Final results'
-    : 'Totals include placement points already awarded. Pending points show a dash.';
+    : 'Provisional totals include sports in progress. Tied places share points until their mini-game is recorded.';
   renderTiebreaks('overall', 'overall');
 }
 

@@ -328,10 +328,15 @@ function rankEvent(event, matches, results, teams, decisions, tiebreaks) {
     scope: event, winsAgainst: headToHeadCount(results), meetings: 1, complete, decisions, tiebreaks,
   });
   const standings = standingsResult(ranked, complete, tiebreaks);
-  standings.rows = ranked.map(row => ({
-    ...row,
-    points: standings.final ? (PLACEMENT_POINTS[row.rank - 1] ?? 0) : null,
-  }));
+  const placeCounts = new Map();
+  for (const { rank } of ranked) placeCounts.set(rank, (placeCounts.get(rank) ?? 0) + 1);
+  standings.rows = ranked.map(row => {
+    const places = placeCounts.get(row.rank);
+    // Estimate tied places by sharing their points until the mini-game resolves them.
+    const combined = Array.from({ length: places }, (_, index) => PLACEMENT_POINTS[row.rank - 1 + index] ?? 0)
+      .reduce((total, points) => total + points, 0);
+    return { ...row, points: results.length ? combined / places : null };
+  });
   return standings;
 }
 

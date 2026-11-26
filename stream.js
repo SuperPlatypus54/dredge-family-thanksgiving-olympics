@@ -125,19 +125,20 @@ function renderStandings(event, tournament, completed) {
 function renderOverall(tournament) {
   const result = tournament.overall;
   const finalized = Object.values(tournament.events).filter(event => event.final).length;
+  const anyPoints = result.rows.some(row => Object.values(row.events).some(points => points !== null));
   find('stream-overall-progress').textContent = `${finalized} / ${EVENTS.length} sports final`;
   find('stream-overall-rows').innerHTML = result.rows.map(({ team, rank, points, events }) =>
     `<tr${result.winner?.id === team.id ? ' class="is-champion"' : ''}>
-      <td>${finalized ? rank : '–'}</td>
+      <td>${anyPoints ? rank : '–'}</td>
       ${standingTeam(team)}
       ${EVENTS.map(event => `<td>${events[event.id] ?? '–'}</td>`).join('')}
-      <td>${finalized ? points : '–'}</td>
+      <td>${anyPoints ? points : '–'}</td>
     </tr>`
   ).join('');
 
-  let note = finalized
-    ? 'Provisional standings. Points count from finalized sports.'
-    : 'Placement points appear when the first sport is final.';
+  let note = anyPoints
+    ? 'Provisional totals include sports in progress. Tied places share points until resolved.'
+    : 'Provisional placement points appear after the first completed match.';
   if (result.winner) {
     note = `Thanksgiving Olympics champions are ${teamName(result.winner)}.`;
     if (!result.final) note += ` ${miniGameNote(tournament.tiebreaks, 'overall')}`;
