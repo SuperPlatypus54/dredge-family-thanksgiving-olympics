@@ -312,7 +312,7 @@
 
 .stream-round {
   display: grid;
-  grid-template-columns: clamp(51px, calc(var(--view) * 5.35), 105px) minmax(0, 1fr);
+  grid-template-columns: 170px minmax(0, 1fr);
   gap: var(--fixture-gap);
   min-width: 0;
   min-height: 0;
@@ -324,37 +324,40 @@
   border-radius: 8px;
   background: var(--game);
   color: #fff;
+  padding: .35em;
   text-align: center;
 }
 
 .stream-round-label h3 {
   margin: 0;
-  font: 700 clamp(.85rem, calc(var(--view) * 1.14), 1.36rem)/1 var(--display);
-}
-
-.stream-round-label strong {
-  display: block;
-  margin-top: .04em;
-  font-size: 2.2em;
+  font: 700 1.7rem/1 var(--display);
 }
 
 .stream-round-label p {
-  margin: .22em 0 0;
-  font-size: .76rem;
+  margin: .45em 0 0;
+  font-size: .88rem;
   font-weight: 700;
 }
 
 .stream-round-matches {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--fixture-gap);
   min-width: 0;
   min-height: 0;
 }
 
+.stream-round-matches > .stream-match:only-child {
+  grid-column: 1 / -1;
+}
+
+.stream-round-matches:has(> .stream-match:nth-child(3)) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .stream-match {
   display: grid;
-  grid-template-rows: repeat(2, minmax(0, 1fr));
+  grid-template-rows: auto repeat(2, minmax(0, 1fr));
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -363,11 +366,10 @@
   background: var(--paper);
 }
 
-.stream-match.is-timed {
-  grid-template-rows: auto repeat(2, minmax(0, 1fr));
-}
-
 .stream-match-time {
+  display: flex;
+  justify-content: space-between;
+  gap: .5em;
   margin: 0;
   padding: .16em clamp(5px, calc(var(--view) * .58), 12px);
   border-bottom: 1px solid #e6d6ca;
@@ -412,6 +414,14 @@
   background: #e6eedc;
 }
 
+.stream-side.is-unassigned {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.stream-side.is-unassigned .stream-name {
+  color: #685b63;
+}
+
 .stream-name {
   color: #31212a;
   font-weight: 700;
@@ -442,8 +452,4 @@
 .stream-check {
   font-family: "DM Sans", system-ui, sans-serif;
   font-size: .52em;
-}
-
-.stream-board[data-round-count="7"] .stream-round-label strong {
-  font-size: 1.7em;
 }

@@ -1,6 +1,7 @@
 import {
   CATCH_UP_START, DINNER_START, EVENTS, TARGETS, TEAMS, TOURNAMENT_START,
-  formatScheduleTime, getLineup, getMatches, getMatchState, getSubstitution, getTournamentStandings,
+  formatScheduleTime, getBracketByes, getLineup, getMatches, getMatchState, getSubstitution,
+  getTournamentStandings, roundLabel,
 } from './tournament.js';
 import { createDrawEditor } from './draw-editor.js';
 import { setupFullscreen, watchScoreboard } from './display.js';
@@ -12,7 +13,7 @@ const scorekeeperPath = pageUrl('score').pathname;
 const organizer = [scorekeeperPath, `${scorekeeperPath}/`, `${scorekeeperPath}/index.html`].includes(location.pathname);
 document.body.dataset.view = organizer ? 'scorekeeper' : 'spectator';
 const tokenKey = 'dredge-olympics-token';
-const statusLabel = { upcoming: 'Scheduled', live: 'In play', final: 'Final' };
+const statusLabel = { pending: 'Pending', upcoming: 'Scheduled', live: 'In play', final: 'Final' };
 const dialog = $('match-dialog');
 const content = $('dialog-content');
 const roundFilters = new Map();
@@ -25,14 +26,17 @@ let invoker = null;
 let tiebreaks = [];
 
 const currentTeams = () => state.draw?.teams ?? TEAMS;
-const currentMatches = () => getMatches(currentTeams().length);
+const currentMatches = () => getMatches(currentTeams().length, state.records);
 const sportMatches = event => currentMatches().filter(match => match.event === event);
 const scoreOf = match => getMatchState(match, state.records[match.id]);
-const finals = matches => matches.filter(match => scoreOf(match).status === 'final').length;
+const finals = matches => matches.filter(match => match.home && match.away && scoreOf(match).status === 'final').length;
 const hasScores = () => Object.values(state.records).some(record => record.actions.length > 0);
 const teamLabel = team => team.players.join(' &amp; ') || `Team ${team.id}`;
 const teamName = team => team.players.join(' & ') || `Team ${team.id}`;
-const sideLabel = (match, side) => teamLabel({ id: match[side], players: getLineup(match, side, state.draw) });
+const matchupReady = match => Boolean(match.home && match.away);
+const sideLabel = (match, side) => match[side]
+  ? teamLabel({ id: match[side], players: getLineup(match, side, state.draw) })
+  : match[`${side}Label`] ?? 'To be decided';
 const substituteNote = match => {
   const substitution = getSubstitution(match, state.draw);
   return substitution ? `${substitution.player} fills in for ${substitution.forPlayer} on Team ${substitution.team}.` : '';
@@ -67,32 +71,37 @@ function saveToken(value) {
 
 function renderMatch(match) {
   const score = scoreOf(match);
+  const ready = matchupReady(match);
+  const status = ready ? score.status : 'pending';
   const note = substituteNote(match);
   const sides = ['home', 'away'].map(side => `<span class="fixture-team">
-    ${chip(match[side])}<span><strong>${sideLabel(match, side)}</strong>
-    ${score.winner === side ? '<small class="winner-text">Won</small>' : ''}</span>
+    ${match[side] ? chip(match[side]) : ''}<span><strong class="${match[side] ? '' : 'fixture-placeholder'}">${sideLabel(match, side)}</strong>
+    ${ready && score.winner === side ? '<small class="winner-text">Won</small>' : ''}</span>
   </span>`);
-  const center = score.status !== 'upcoming' && match.event !== 'pool'
+  const center = ready && score.status !== 'upcoming' && match.event !== 'pool'
     ? `<b>${score.scores[0]}</b> : <b>${score.scores[1]}</b>`
     : 'vs';
   const time = Number.isInteger(match.startMinute) ? timeMarkup(match.startMinute) : '';
-  return `<button type="button" class="fixture" data-match="${match.id}" title="${organizer && state.draw ? 'Score match' : 'Match details'}">
+  const disabled = organizer && !ready;
+  const title = disabled ? 'Waiting for the previous matches' : organizer && state.draw ? 'Score match' : 'Match details';
+  return `<button type="button" class="fixture" data-match="${match.id}" title="${title}"${disabled ? ' disabled' : ''}>
+    <span class="fixture-label">${match.label ?? roundLabel(match.round)}</span>
     ${sides[0]}<span class="fixture-score">${center}</span>${sides[1]}
-    <span class="fixture-meta">${time}${badge(score.status)}</span>
+    <span class="fixture-meta">${time}${badge(status)}</span>
     ${note ? `<span class="fixture-note">${note}</span>` : ''}
   </button>`;
 }
 
-function renderFixtures(matches, activeRound, rounds) {
+function renderFixtures(matches, activeRound, rounds, event) {
   const focusedMatch = document.activeElement?.dataset.match;
   const visible = activeRound === 'All' ? rounds : [activeRound];
+  const teams = currentTeams();
+  const byes = getBracketByes(teams.length, event.id).map(id => teamLabel(teams.find(team => team.id === id)));
   $('fixtures').innerHTML = visible.map(round => {
     const group = matches.filter(match => match.round === round);
-    const participating = new Set(group.flatMap(match => [match.home, match.away]));
-    const bye = currentTeams().find(team => !participating.has(team.id));
-    const byeText = bye ? `<span>Bye: Team ${bye.id}${bye.players.length ? ` (${teamLabel(bye)})` : ''}</span>` : '';
+    const byeText = round === 1 && byes.length ? `<span>Semifinal byes · ${byes.join(' · ')}</span>` : '';
     return `<div class="fixture-round">
-      <div class="round-heading"><h3>Round ${round}</h3>${byeText}</div>
+      <div class="round-heading"><h3>${roundLabel(round)}</h3>${byeText}</div>
       <div class="fixture-list">${group.map(renderMatch).join('')}</div>
     </div>`;
   }).join('');
@@ -168,14 +177,13 @@ function renderEvent(standings) {
   const matches = sportMatches(event.id);
   const rounds = [...new Set(matches.map(match => match.round))];
   const filter = roundFilters.get(event.id);
-  const activeRound = filter === 'All' || rounds.includes(filter)
-    ? filter
-    : matches.find(match => scoreOf(match).status !== 'final')?.round ?? rounds.at(-1);
+  const activeRound = rounds.includes(filter) ? filter : 'All';
   const focusedRound = document.activeElement?.dataset.round;
   $('rounds').innerHTML = ['All', ...rounds].map(round => {
     const complete = round !== 'All' && matches.filter(match => match.round === round).every(match => scoreOf(match).status === 'final');
-    const label = round === 'All' ? 'All rounds' : `Round ${round}${complete ? ', complete' : ''}`;
-    return `<button type="button" data-round="${round}" aria-label="${label}" aria-pressed="${round === activeRound}">${round}${complete ? '<span class="round-check" aria-hidden="true">✓</span>' : ''}</button>`;
+    const stage = round === 'All' ? 'All stages' : roundLabel(round);
+    const label = complete ? `${stage}, complete` : stage;
+    return `<button type="button" data-round="${round}" aria-label="${label}" aria-pressed="${round === activeRound}">${stage}${complete ? '<span class="round-check" aria-hidden="true">✓</span>' : ''}</button>`;
   }).join('');
   if (focusedRound) $('rounds').querySelector(`[data-round="${focusedRound}"]`)?.focus({ preventScroll: true });
 
@@ -183,9 +191,9 @@ function renderEvent(standings) {
   const timed = matches.some(match => Number.isInteger(match.startMinute));
   $('schedule-hours').hidden = !timed;
   const flexible = timed && event.id === 'cornhole' ? ' · Flexible times' : '';
-  $('event-rule').textContent = `2v2 round robin · ${event.rule}${flexible}`;
+  $('event-rule').textContent = `2v2 single elimination · ${event.rule}${flexible}`;
   $('event-progress').textContent = `${completed} / ${matches.length} played`;
-  renderFixtures(matches, activeRound, rounds);
+  renderFixtures(matches, activeRound, rounds, event);
   renderStandings(event, standings.events[event.id], completed);
 }
 
@@ -210,7 +218,10 @@ function render() {
   const allMatches = currentMatches();
   $('overall-progress').innerHTML = `<strong>${finals(allMatches)}</strong> / ${allMatches.length} matches`;
   renderRoster();
-  if (openDetails && dialog.open) renderDetails(openDetails);
+  if (openDetails && dialog.open) {
+    const match = allMatches.find(item => item.id === openDetails);
+    if (match) renderDetails(match);
+  }
 }
 
 async function api(path, options) {
@@ -290,22 +301,23 @@ function unlock(onUnlock) {
 
 function renderDetails(match) {
   const score = scoreOf(match);
+  const ready = matchupReady(match);
   const note = substituteNote(match);
   const sides = ['home', 'away'];
   const lines = sides.map((side, index) => {
     const won = score.winner === side;
-    const points = score.status === 'upcoming' ? '' : match.event === 'pool' ? (won ? 'Win' : 'Loss') : score.scores[index];
-    return `<div class="details-side">${chip(match[side])}
-      <strong>${sideLabel(match, side)}</strong>
+    const points = !ready || score.status === 'upcoming' ? '' : match.event === 'pool' ? (won ? 'Win' : 'Loss') : score.scores[index];
+    return `<div class="details-side">${match[side] ? chip(match[side]) : ''}
+      <strong class="${match[side] ? '' : 'fixture-placeholder'}">${sideLabel(match, side)}</strong>
       <span class="${won ? 'winner-text' : ''}">${points}${won && match.event !== 'pool' ? ' · Won' : ''}</span>
     </div>`;
   }).join('');
-  const hits = match.event === 'darts' && state.records[match.id]?.actions.some(action => action.type === 'hit');
+  const hits = ready && match.event === 'darts' && state.records[match.id]?.actions.some(action => action.type === 'hit');
   const marks = hits ? `<table class="details-marks">
     <thead><tr><th scope="col">Team</th>${TARGETS.map(target => `<th scope="col">${target}</th>`).join('')}</tr></thead>
     <tbody>${sides.map((side, index) => `<tr><th scope="row">${match[side]}</th>${score.marks[index].map(count => `<td>${count}</td>`).join('')}</tr>`).join('')}</tbody>
     </table>` : '';
-  content.innerHTML = `<p class="details-lede">${badge(score.status)}</p><div class="details-sides">${lines}</div>${marks}
+  content.innerHTML = `<p class="details-lede">${badge(ready ? score.status : 'pending')}</p><div class="details-sides">${lines}</div>${marks}
     ${note ? `<p class="details-note">${note}</p>` : ''}`;
 }
 
@@ -321,7 +333,7 @@ async function save(match, actions, version, drawVersion) {
   } catch (error) {
     if (error.status === 401) {
       saveToken('');
-      if (dialog.open) unlock(() => openMatch(match));
+      if (dialog.open) unlock(() => openMatch(match.id));
     }
     if (error.status === 409) {
       await poll();
@@ -331,12 +343,14 @@ async function save(match, actions, version, drawVersion) {
   }
 }
 
-function openMatch(match) {
-  if (organizer && !token) return unlock(() => openMatch(match));
+function openMatch(id) {
+  const match = currentMatches().find(item => item.id === id);
+  if (!match || (organizer && !matchupReady(match))) return;
+  if (organizer && !token) return unlock(() => openMatch(id));
   if (organizer && !state.draw) return openDraw();
   const event = EVENTS.find(item => item.id === match.event);
   const planned = Number.isInteger(match.startMinute) ? ` · Planned ${formatScheduleTime(match.startMinute)}` : '';
-  showDialog(organizer ? 'Score match' : 'Match details', `${event.name} · Round ${match.round}${planned}`);
+  showDialog(organizer ? 'Score match' : 'Match details', `${event.name} · ${match.label ?? roundLabel(match.round)}${planned}`);
   if (organizer) {
     const draw = state.draw;
     content.append(createScoreEditor({
@@ -346,7 +360,7 @@ function openMatch(match) {
       onSave: (actions, version) => save(match, actions, version, draw.version),
     }));
   } else {
-    openDetails = match;
+    openDetails = match.id;
     renderDetails(match);
   }
 }
@@ -462,8 +476,8 @@ function renderRoster() {
   const note = $('roster-note');
   note.hidden = !state.draw?.sharedPlayer;
   if (state.draw?.sharedPlayer) {
-    const { sharedPlayer, sharedTeams, headToHeadRound, substitute } = state.draw;
-    note.textContent = `${sharedPlayer} plays for Teams ${sharedTeams.join(' and ')}. ${substitute} fills in on Team ${sharedTeams[1]} when they meet in Round ${headToHeadRound}. Play ${sharedPlayer}’s matches one at a time.`;
+    const { sharedPlayer, sharedTeams, substitute } = state.draw;
+    note.textContent = `${sharedPlayer} plays for Teams ${sharedTeams.join(' and ')}. ${substitute} fills in on Team ${sharedTeams[1]} if those teams meet. Play ${sharedPlayer}’s matches one at a time.`;
   }
 }
 
@@ -498,7 +512,7 @@ $('rounds').addEventListener('click', event => {
 });
 $('fixtures').addEventListener('click', event => {
   const button = event.target.closest('[data-match]');
-  if (button) openMatch(currentMatches().find(match => match.id === button.dataset.match));
+  if (button) openMatch(button.dataset.match);
 });
 for (const container of ['event-tiebreaks', 'overall-tiebreaks']) {
   $(container).addEventListener('click', event => {

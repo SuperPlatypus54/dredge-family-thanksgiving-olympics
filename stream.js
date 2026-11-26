@@ -1,7 +1,8 @@
 import { setupFullscreen, watchScoreboard } from './display.js';
 import {
   CATCH_UP_START, DINNER_START, EVENTS, TEAMS, TOURNAMENT_START,
-  formatScheduleTime, getLineup, getMatches, getMatchState, getTournamentStandings,
+  formatScheduleTime, getBracketByes, getLineup, getMatches, getMatchState,
+  getTournamentStandings, roundLabel,
 } from './tournament.js';
 
 const eventOrder = ['darts', 'pool', 'cornhole'].map(id => EVENTS.find(event => event.id === id));
@@ -52,41 +53,45 @@ function miniGameNote(tiebreaks, scope) {
 
 function matchCard(match, result) {
   const timed = Number.isInteger(match.startMinute);
-  const timing = timed
-    ? `<p class="stream-match-time">${formatScheduleTime(match.startMinute)}</p>`
-    : '';
+  const heading = `<div class="stream-match-time"><span>${match.label}</span>
+    ${timed ? `<span>${formatScheduleTime(match.startMinute)}</span>` : ''}
+  </div>`;
   const rows = sides.map((side, sideIndex) => {
-    const players = getLineup(match, side, state.draw);
-    const name = players.join(' &amp; ') || `Team ${match[side]}`;
+    const id = match[side];
+    const name = id
+      ? getLineup(match, side, state.draw).join(' &amp; ') || `Team ${id}`
+      : match[`${side}Label`];
     const won = result.winner === side;
     let points = '–';
     if (result.status !== 'upcoming') {
       points = match.event === 'pool' ? (won ? 'W' : 'L') : result.scores[sideIndex];
     }
-    return `<div class="stream-side${won ? ' is-winner' : ''}">
-      ${teamChip(match[side])}<span class="stream-name">${name}</span>
+    return `<div class="stream-side${won ? ' is-winner' : ''}${id ? '' : ' is-unassigned'}">
+      ${id ? teamChip(id) : ''}<span class="stream-name">${name}</span>
       <strong class="stream-points">${won ? '<span class="stream-check" aria-label="Winner">✓</span>' : ''}${points}</strong>
     </div>`;
   });
   return `<div class="stream-match is-${result.status}${timed ? ' is-timed' : ''}" title="${statusLabels[result.status]}" data-match="${match.id}">
-    ${timing}${rows.join('')}
+    ${heading}${rows.join('')}
   </div>`;
 }
 
-function renderSchedule(matches, teams) {
+function renderSchedule(matches, teamCount, eventId) {
   const rounds = new Map();
   for (const match of matches) {
     if (!rounds.has(match.round)) rounds.set(match.round, []);
     rounds.get(match.round).push(match);
   }
 
-  board.dataset.roundCount = rounds.size;
-  find('stream-rounds').innerHTML = Array.from(rounds, ([number, group]) => {
-    const bye = teams.find(team => !group.some(match => sides.some(side => match[side] === team.id)));
+  const byes = getBracketByes(teamCount, eventId);
+  find('stream-rounds').innerHTML = Array.from(rounds, ([number, group], roundIndex) => {
+    const byeNote = roundIndex === 0 && byes.length
+      ? `<p>Byes for ${byes.map(id => `Team ${id}`).join(' and ')}</p>`
+      : '';
     return `<section class="stream-round">
       <div class="stream-round-label">
-        <h3>Round <strong>${number}</strong></h3>
-        ${bye ? `<p>Bye ${bye.id}</p>` : ''}
+        <h3>${roundLabel(number)}</h3>
+        ${byeNote}
       </div>
       <div class="stream-round-matches">
         ${group.map(match => matchCard(match, getMatchState(match, state.records[match.id]))).join('')}
@@ -99,7 +104,7 @@ function renderStandings(event, tournament, completed) {
   const result = tournament.events[event.id];
   find('stream-standings').innerHTML = result.rows.map(({ team, wins, losses, rank, points }) =>
     `<tr${result.winner?.id === team.id ? ' class="is-champion"' : ''}>
-      <td>${completed ? rank : '–'}</td>
+      <td>${completed ? (rank ?? '–') : '–'}</td>
       ${standingTeam(team)}
       <td>${wins}</td>
       <td>${losses}</td>
@@ -107,7 +112,7 @@ function renderStandings(event, tournament, completed) {
     </tr>`
   ).join('');
 
-  let note = 'Ranked by wins, then head-to-head. Points post when the event is final.';
+  let note = 'Placement points post once final places are set.';
   if (result.winner) {
     note = `${event.name} champions are ${teamName(result.winner)}.`;
     if (!result.final) note += ` ${miniGameNote(tournament.tiebreaks, event.id)}`;
@@ -145,7 +150,7 @@ function renderOverall(tournament) {
 function render() {
   const event = order[index];
   const teams = state.draw?.teams ?? TEAMS;
-  const fixtures = getMatches(teams.length);
+  const fixtures = getMatches(teams.length, state.records);
   const tournament = getTournamentStandings(state.records, teams, state.tiebreaks);
   const isOverall = event.id === 'overall';
   const timed = fixtures.some(match => Number.isInteger(match.startMinute));
@@ -163,11 +168,10 @@ function render() {
 
   const matches = fixtures.filter(match => match.event === event.id);
   const completed = matches.filter(match => getMatchState(match, state.records[match.id]).status === 'final').length;
-  const scheduleNote = timed && event.id === 'cornhole' ? ' · Flexible starts' : '';
-  find('stream-rule').textContent = `${event.rule} · 2v2 round robin${scheduleNote}`;
+  find('stream-rule').textContent = `${event.rule} · 2v2 single elimination`;
   find('stream-played').textContent = `${completed} / ${matches.length} played`;
   renderStandings(event, tournament, completed);
-  renderSchedule(matches, teams);
+  renderSchedule(matches, teams.length, event.id);
 }
 
 function tick() {

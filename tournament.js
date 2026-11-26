@@ -19,10 +19,8 @@ export const PLACEMENT_POINTS = [15, 12, 9, 6, 3, 0];
 
 export const TOURNAMENT_START = 11 * 60 + 30;
 export const DINNER_START = 15 * 60 + 30;
-const ROUND_MINUTES = 45;
-const DARTS_AND_BAGS_MINUTES = 8;
-const POOL_MINUTES = 6;
-const POOL_OFFSET = 3 * DARTS_AND_BAGS_MINUTES + 1;
+const MATCH_MINUTES = { cornhole: 10, darts: 15, pool: 15 };
+export const CATCH_UP_START = TOURNAMENT_START + 5 * (10 + 15 + 15);
 
 export function formatScheduleTime(minute) {
   const hour = Math.floor(minute / 60);
@@ -39,80 +37,57 @@ export const TARGETS = ['20', '19', '18', '17', '16', '15', 'Bull'];
 const TARGET_VALUES = [20, 19, 18, 17, 16, 15, 25];
 const SIDES = ['home', 'away'];
 
-const SIX_TEAM_ROUNDS = [
-  ['AF', 'BE', 'CD'],
-  ['AE', 'FD', 'BC'],
-  ['AD', 'EC', 'FB'],
-  ['AC', 'DB', 'EF'],
-  ['AB', 'CF', 'DE'],
-];
+// Independently shuffled once so every display sees the same bracket.
+const BRACKET_SEEDS = { cornhole: 'ABDFEC', darts: 'ADEFCB', pool: 'CEDFBA' };
 
-// Use a different set of opponents in the same numbered round of each event.
-const SIX_TEAM_ROUND_ORDER = {
-  darts: [2, 3, 4, 0, 1],
-  pool: [4, 0, 1, 2, 3],
-};
-
-// Preserve fixture IDs for any previously saved seven-team event.
-const SEVEN_TEAM_ROUNDS = [
-  ['BG', 'CF', 'DE'],
-  ['GA', 'BE', 'CD'],
-  ['BC', 'GE', 'AF'],
-  ['GC', 'EA', 'FD'],
-  ['EC', 'AD', 'FB'],
-  ['CA', 'DB', 'FG'],
-  ['AB', 'DG', 'EF'],
-];
-
-function makeSchedule(rounds, roundOrder = {}) {
-  const defaultOrder = rounds.map((_, index) => index);
-  return EVENTS.flatMap(({ id: event }) =>
-    (roundOrder[event] ?? defaultOrder).flatMap((originalRound, roundIndex) =>
-      rounds[originalRound].map(([home, away], slot) => ({
-        // Keep scores attached to the same matchup after a round moves.
-        id: `${event}-${originalRound + 1}-${slot + 1}`,
-        event,
-        round: roundIndex + 1,
-        home,
-        away,
-      }))
-    )
-  );
+export function roundLabel(round) {
+  return ['Quarterfinals', 'Semifinals', 'Final'][round - 1];
 }
 
-export const CATCH_UP_START = TOURNAMENT_START + (SIX_TEAM_ROUNDS.length - 1) * ROUND_MINUTES
-  + POOL_OFFSET + 3 * POOL_MINUTES;
-
-function planSixTeamSchedule() {
-  const fixtures = makeSchedule(SIX_TEAM_ROUNDS, SIX_TEAM_ROUND_ORDER);
-  const timed = [];
-  for (let round = 1; round <= SIX_TEAM_ROUNDS.length; round++) {
-    const start = TOURNAMENT_START + (round - 1) * ROUND_MINUTES;
-    const eventFixtures = event => fixtures.filter(match => match.round === round && match.event === event);
-    const bags = eventFixtures('cornhole');
-
-    eventFixtures('darts').forEach((darts, slot) => {
-      const startMinute = start + slot * DARTS_AND_BAGS_MINUTES;
-      const dartsTeams = [darts.home, darts.away];
-      const bagIndex = bags.findIndex(match => !dartsTeams.includes(match.home) && !dartsTeams.includes(match.away));
-      if (bagIndex < 0) throw new Error(`Round ${round} has no bags match available alongside ${darts.id}.`);
-      const [bag] = bags.splice(bagIndex, 1);
-      timed.push({ ...darts, startMinute }, { ...bag, startMinute });
-    });
-
-    eventFixtures('pool').forEach((pool, slot) => {
-      timed.push({ ...pool, startMinute: start + POOL_OFFSET + slot * POOL_MINUTES });
-    });
-  }
-  return EVENTS.flatMap(({ id }) => timed.filter(match => match.event === id));
+export function getBracketByes(teamCount, event) {
+  return [...BRACKET_SEEDS[event].slice(0, teamCount === 7 ? 1 : 2)];
 }
 
-export const MATCHES = planSixTeamSchedule();
-const SEVEN_TEAM_MATCHES = makeSchedule(SEVEN_TEAM_ROUNDS);
+function buildBracket(event, teamCount, firstMinute, records) {
+  const [first, second, a, b, c, d] = BRACKET_SEEDS[event];
+  const matches = [];
+  const add = (round, label, home, away, homeMatch, awayMatch) => {
+    const from = match => {
+      if (!match?.home || !match.away || !records[match.id]) return null;
+      const { winner } = getMatchState(match, records[match.id]);
+      return winner ? match[winner] : null;
+    };
+    const match = {
+      id: `bracket-${event}-${matches.length + 1}`, event, round, label,
+      startMinute: firstMinute + matches.length * MATCH_MINUTES[event],
+      home: homeMatch ? from(homeMatch) : home, away: awayMatch ? from(awayMatch) : away,
+      homeFrom: homeMatch?.id ?? null, awayFrom: awayMatch?.id ?? null,
+      homeLabel: homeMatch ? `Winner of ${homeMatch.label}` : `Team ${home}`,
+      awayLabel: awayMatch ? `Winner of ${awayMatch.label}` : `Team ${away}`,
+    };
+    matches.push(match);
+    return match;
+  };
 
-export function getMatches(teamCount) {
-  return teamCount === 7 ? SEVEN_TEAM_MATCHES : MATCHES;
+  const q1 = add(1, 'Quarterfinal 1', a, b);
+  const q2 = add(1, 'Quarterfinal 2', c, d);
+  const q3 = teamCount === 7 ? add(1, 'Quarterfinal 3', second, 'G') : null;
+  const s1 = add(2, 'Semifinal 1', first, null, null, q1);
+  const s2 = add(2, 'Semifinal 2', second, null, q3, q2);
+  add(3, 'Final', null, null, s1, s2);
+  return matches;
 }
+
+export function getMatches(teamCount, records = {}) {
+  let start = TOURNAMENT_START;
+  return EVENTS.flatMap(({ id }) => {
+    const matches = buildBracket(id, teamCount, start, records);
+    start += matches.length * MATCH_MINUTES[id];
+    return matches;
+  });
+}
+
+export const MATCHES = getMatches(6);
 
 export function inspectTeams(teams) {
   if (!Array.isArray(teams) || ![6, 7].includes(teams.length)) {
@@ -147,11 +122,8 @@ export function inspectTeams(teams) {
 
   const sharedPlayer = seats.find((player, index) => seats.indexOf(player) !== index);
   const sharedTeams = normalized.filter(team => team.players.includes(sharedPlayer)).map(team => team.id);
-  const headToHeadRound = SEVEN_TEAM_ROUNDS.findIndex(pairs => pairs.some(pair =>
-    sharedTeams.every(team => pair.includes(team))
-  )) + 1;
-  const activeTeams = SEVEN_TEAM_ROUNDS[headToHeadRound - 1].join('');
-  const byeTeam = normalized.find(team => !activeTeams.includes(team.id));
+  const headToHeadRound = null;
+  const byeTeam = normalized.find(team => !sharedTeams.includes(team.id));
   return { teams: normalized, sharedPlayer, sharedTeams, headToHeadRound, byeTeam };
 }
 
@@ -308,9 +280,10 @@ function rankGroup(group, rank, context) {
       wins += directWins;
       played += directWins + winsAgainst(opponent.id, team);
     }
-    return { row, wins, complete: played === opponents.length * meetings };
+    return { row, wins, played, complete: played === opponents.length * meetings };
   });
-  if (headToHead.every(result => result.complete)) {
+  if (headToHead.every(result => result.complete)
+    || (meetings === null && headToHead[0].played > 0 && headToHead.every(result => result.played === headToHead[0].played))) {
     const groups = groupsByScore(headToHead, result => result.wins);
     if (groups.length > 1) return rankGroups(groups.map(places => places.map(result => result.row)), rank, context);
   }
@@ -329,8 +302,9 @@ function rankGroup(group, rank, context) {
 
 function eventResults(matches, records) {
   return matches.flatMap(match => {
+    if (!match.home || !match.away) return [];
     const { winner } = getMatchState(match, records[match.id]);
-    return winner ? [{ winner: match[winner], loser: winner === 'home' ? match.away : match.home }] : [];
+    return winner ? [{ round: match.round, winner: match[winner], loser: winner === 'home' ? match.away : match.home }] : [];
   });
 }
 
@@ -341,15 +315,16 @@ function standingsResult(rows, complete, tiebreaks) {
 }
 
 function rankEvent(event, matches, results, teams, decisions, tiebreaks) {
-  const rows = teams.map(team => ({ team, wins: 0, losses: 0 }));
+  const rows = teams.map(team => ({ team, wins: 0, losses: 0, finish: 4 }));
   const rowsByTeam = new Map(rows.map(row => [row.team.id, row]));
-  for (const { winner, loser } of results) {
+  for (const { round, winner, loser } of results) {
     rowsByTeam.get(winner).wins++;
     rowsByTeam.get(loser).losses++;
+    rowsByTeam.get(loser).finish = round;
   }
 
   const complete = matches.length > 0 && results.length === matches.length;
-  const ranked = rankGroups(groupsByScore(rows, row => row.wins), 1, {
+  const ranked = rankGroups(groupsByScore(rows, row => row.finish), 1, {
     scope: event, winsAgainst: headToHeadCount(results), meetings: 1, complete, decisions, tiebreaks,
   });
   const standings = standingsResult(ranked, complete, tiebreaks);
@@ -361,12 +336,12 @@ function rankEvent(event, matches, results, teams, decisions, tiebreaks) {
 }
 
 export function getStandings(event, records = {}, teams = TEAMS) {
-  const matches = getMatches(teams.length).filter(match => match.event === event);
+  const matches = getMatches(teams.length, records).filter(match => match.event === event);
   return rankEvent(event, matches, eventResults(matches, records), teams, {}, []).rows;
 }
 
 export function getTournamentStandings(records = {}, teams = TEAMS, tiebreaks = {}) {
-  const matches = getMatches(teams.length);
+  const matches = getMatches(teams.length, records);
   const matchesByEvent = EVENTS.map(({ id }) => matches.filter(match => match.event === id));
   const results = matchesByEvent.map(fixtures => eventResults(fixtures, records));
   const activeTies = [];
@@ -387,7 +362,7 @@ export function getTournamentStandings(records = {}, teams = TEAMS, tiebreaks = 
   const complete = EVENTS.every(({ id }) => events[id].final);
   const overallTies = [];
   const ranked = rankGroups(groupsByScore(rows, row => row.points), 1, {
-    scope: 'overall', winsAgainst: headToHeadCount(results.flat()), meetings: EVENTS.length,
+    scope: 'overall', winsAgainst: headToHeadCount(results.flat()), meetings: null,
     complete, decisions: tiebreaks, tiebreaks: overallTies,
   });
   return { events, overall: standingsResult(ranked, complete, overallTies), tiebreaks: [...activeTies, ...overallTies] };

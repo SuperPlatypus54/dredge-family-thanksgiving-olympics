@@ -248,7 +248,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .round-selector button:hover { border-color: #c5aa9c; }
 .round-selector button[aria-pressed="true"] { background: var(--plum); color: #fff9ee; }
 .round-check { display: inline-block; margin-left: 2px; }
-.round-heading { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; padding: 6px 1px 7px; }
+.round-heading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 10px; align-items: baseline; padding: 6px 1px 7px; }
 .round-heading h3 { margin: 0; font: 700 1.38rem/1 var(--display); }
 .round-heading span { font-size: .78rem; color: var(--muted); }
 .fixture-round + .fixture-round { margin-top: 12px; }
@@ -267,7 +267,9 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   border: 1px solid var(--line);
   border-radius: 7px;
 }
-.fixture:hover { border-color: #9d6b5b; }
+.fixture:hover:not(:disabled) { border-color: #9d6b5b; }
+.fixture:disabled { border-style: dashed; background: #f8f0e6; }
+.fixture-label { grid-column: 1 / -1; font-size: .78rem; font-weight: 700; color: var(--muted); }
 .fixture-team { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .team-chip {
   display: inline-grid;
@@ -289,12 +291,14 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .team-G { --team-fill: #d9ebe6; --team-ink: #27584b; }
 .fixture-team strong { display: block; font-size: .91rem; line-height: 1.25; }
 .fixture-team small { display: block; color: var(--muted); font-size: .72rem; }
+.fixture-placeholder { color: var(--muted); font-weight: 600; }
 .fixture-score { text-align: center; font: 700 1.16rem/1 var(--display); color: var(--muted); white-space: nowrap; }
 .fixture-score b { font-size: 1.45rem; color: var(--ink); }
 .fixture-meta { display: grid; justify-items: end; gap: 3px; }
 .fixture-meta time { color: var(--ink); font-size: .9rem; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .match-status { padding: 4px 6px; border-radius: 4px; justify-self: end; font-size: .73rem; font-weight: 700; white-space: nowrap; }
 .match-status.upcoming { color: #6c5a63; background: #f1e8de; }
+.match-status.pending { color: #5d4d5d; background: #efe5ee; }
 .match-status.live { color: #8a371c; background: #f8dfc8; }
 .match-status.final { color: #335643; background: #e5eee1; }
 .winner-text { color: var(--green); font-weight: 700; }
