@@ -299,6 +299,85 @@ function unlock(onUnlock) {
   });
 }
 
+function dartsLineupMarkup(match) {
+  const lineup = state.records[match.id]?.darts_lineup;
+  if (match.event !== 'darts' || !lineup || !matchupReady(match)) return '';
+  const side = id => id === match.home ? 'home' : 'away';
+  return `<section class="darts-lineup">
+    <h3>DartConnect · Set ${lineup.set_number}</h3>
+    <p>DartConnect left · Team ${lineup.left_team_id} · ${sideLabel(match, side(lineup.left_team_id))}</p>
+    <p>DartConnect right · Team ${lineup.right_team_id} · ${sideLabel(match, side(lineup.right_team_id))}</p>
+    <small>Verified <time datetime="${lineup.verified_at}">${new Date(lineup.verified_at).toLocaleString()}</time></small>
+  </section>`;
+}
+
+function createDartsLineupEditor(match, draw) {
+  const section = document.createElement('div');
+  const lineup = state.records[match.id]?.darts_lineup;
+  section.innerHTML = `<div data-lineup-summary>${dartsLineupMarkup(match)}</div>`;
+  if (scoreOf(match).status === 'final') return section;
+  section.insertAdjacentHTML('beforeend', `<details class="darts-lineup" ${lineup ? '' : 'open'}>
+    <summary>${lineup ? 'Update DartConnect lineup' : 'Confirm DartConnect lineup'}</summary>
+    <form class="pin-form">
+      <label for="darts-set-number">Set number</label>
+      <input id="darts-set-number" name="set_number" type="number" min="1" max="9007199254740991" step="1" required>
+      <label for="darts-team-order">Left and right teams</label>
+      <select id="darts-team-order" name="left_team_id" required>
+        <option value="">Choose the order shown in DartConnect</option>
+        <option value="${match.home}">Left · Team ${match.home} · ${sideLabel(match, 'home')} / Right · Team ${match.away} · ${sideLabel(match, 'away')}</option>
+        <option value="${match.away}">Left · Team ${match.away} · ${sideLabel(match, 'away')} / Right · Team ${match.home} · ${sideLabel(match, 'home')}</option>
+      </select>
+      <p class="form-error" role="alert" hidden></p>
+      <button type="submit" class="button-primary">Confirm lineup</button>
+    </form>
+  </details>`);
+  const details = section.querySelector('details');
+  const form = section.querySelector('form');
+  const setInput = form.elements.set_number;
+  const order = form.elements.left_team_id;
+  const submit = form.querySelector('button');
+  const feedback = form.querySelector('.form-error');
+  let previousVerifiedAt = lineup?.verified_at ?? null;
+  setInput.value = lineup?.set_number ?? '';
+  order.value = lineup?.left_team_id ?? '';
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    if (submit.disabled) return;
+    submit.disabled = true;
+    feedback.hidden = true;
+    try {
+      const result = await api(`/api/darts-lineup/${match.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          set_number: setInput.valueAsNumber,
+          left_team_id: order.value,
+          right_team_id: order.value === match.home ? match.away : match.home,
+          previous_verified_at: previousVerifiedAt,
+          drawVersion: draw.version,
+        }),
+      });
+      accept(result);
+      previousVerifiedAt = result.records[match.id].darts_lineup.verified_at;
+      section.querySelector('[data-lineup-summary]').innerHTML = dartsLineupMarkup(match);
+      details.querySelector('summary').textContent = 'Update DartConnect lineup';
+      details.open = false;
+    } catch (error) {
+      if (error.status === 401) {
+        saveToken('');
+        if (section.isConnected && dialog.open) unlock(() => openMatch(match.id));
+        return;
+      }
+      if (error.status === 409) await poll();
+      feedback.textContent = error.message || 'Could not confirm the lineup.';
+      feedback.hidden = false;
+    } finally {
+      submit.disabled = false;
+    }
+  });
+  return section;
+}
+
 function renderDetails(match) {
   const score = scoreOf(match);
   const ready = matchupReady(match);
@@ -318,7 +397,7 @@ function renderDetails(match) {
     <tbody>${sides.map((side, index) => `<tr><th scope="row">${match[side]}</th>${score.marks[index].map(count => `<td>${count}</td>`).join('')}</tr>`).join('')}</tbody>
     </table>` : '';
   content.innerHTML = `<p class="details-lede">${badge(ready ? score.status : 'pending')}</p><div class="details-sides">${lines}</div>${marks}
-    ${note ? `<p class="details-note">${note}</p>` : ''}`;
+    ${note ? `<p class="details-note">${note}</p>` : ''}${dartsLineupMarkup(match)}`;
 }
 
 async function save(match, actions, version, drawVersion) {
@@ -353,6 +432,7 @@ function openMatch(id) {
   showDialog(organizer ? 'Score match' : 'Match details', `${event.name} · ${match.label ?? roundLabel(match.round)}${planned}`);
   if (organizer) {
     const draw = state.draw;
+    if (match.event === 'darts') content.append(createDartsLineupEditor(match, draw));
     content.append(createScoreEditor({
       match,
       draw,

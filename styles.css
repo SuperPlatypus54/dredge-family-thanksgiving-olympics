@@ -444,6 +444,13 @@ dialog::backdrop { background: #261622a6; }
 .details-side span:last-child { font-weight: 700; }
 .details-marks { width: 100%; margin-top: 12px; border-collapse: collapse; text-align: center; }
 .details-marks th, .details-marks td { border-bottom: 1px solid var(--line); padding: 5px; }
+.darts-lineup { margin: 12px 0; padding: 10px 12px; border: 1px solid #a38679; border-radius: 5px; }
+.darts-lineup h3 { margin: 0 0 6px; font-size: 1rem; }
+.darts-lineup p { margin: 3px 0; }
+.darts-lineup small { color: var(--muted); }
+.darts-lineup summary { cursor: pointer; font-weight: 700; }
+.darts-lineup form { margin-top: 9px; }
+.darts-lineup select { width: 100%; padding: 9px; border: 1px solid #a38679; border-radius: 5px; background: white; color: inherit; }
 .details-note { color: var(--muted); margin: 12px 0 0; font-size: .84rem; }
 
 @media (max-width: 850px) {
