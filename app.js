@@ -96,7 +96,7 @@ function renderFixtures(matches, activeRound, rounds, event) {
   const focusedMatch = document.activeElement?.dataset.match;
   const visible = activeRound === 'All' ? rounds : [activeRound];
   const teams = currentTeams();
-  const byes = getBracketByes(teams.length, event.id).map(id => teamLabel(teams.find(team => team.id === id)));
+  const byes = getBracketByes(teams.length, event.id, state.records).map(id => teamLabel(teams.find(team => team.id === id)));
   $('fixtures').innerHTML = visible.map(round => {
     const group = matches.filter(match => match.round === round);
     const byeText = round === 1 && byes.length ? `<span>Semifinal byes · ${byes.join(' · ')}</span>` : '';

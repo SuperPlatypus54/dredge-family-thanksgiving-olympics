@@ -83,7 +83,7 @@ function renderSchedule(matches, teamCount, eventId) {
     rounds.get(match.round).push(match);
   }
 
-  const byes = getBracketByes(teamCount, eventId);
+  const byes = getBracketByes(teamCount, eventId, state.records);
   find('stream-rounds').innerHTML = Array.from(rounds, ([number, group], roundIndex) => {
     const byeNote = roundIndex === 0 && byes.length
       ? `<p>Byes for ${byes.map(id => `Team ${id}`).join(' and ')}</p>`

@@ -38,18 +38,30 @@ const TARGET_VALUES = [20, 19, 18, 17, 16, 15, 25];
 const SIDES = ['home', 'away'];
 
 // Independently shuffled once so every display sees the same bracket.
-const BRACKET_SEEDS = { cornhole: 'ABDFEC', darts: 'ADEFCB', pool: 'CEDFBA' };
+const BRACKET_SEEDS = { cornhole: 'ABDFEC', darts: 'CEDFAB', pool: 'DFCEBA' };
+const PREVIOUS_SEEDS = { darts: 'ADEFCB', pool: 'CEDFBA' };
 
 export function roundLabel(round) {
   return ['Quarterfinals', 'Semifinals', 'Final'][round - 1];
 }
 
-export function getBracketByes(teamCount, event) {
-  return [...BRACKET_SEEDS[event].slice(0, teamCount === 7 ? 1 : 2)];
+function bracketDraw(event, records) {
+  const prefix = `bracket-${event}`;
+  const previous = PREVIOUS_SEEDS[event];
+  const started = previous && Object.entries(records).some(([id, record]) =>
+    id.startsWith(`${prefix}-`) && !id.startsWith(`${prefix}-v2-`) && record.actions.length > 0
+  );
+  return started
+    ? { prefix, seeds: previous }
+    : { prefix: previous ? `${prefix}-v2` : prefix, seeds: BRACKET_SEEDS[event] };
+}
+
+export function getBracketByes(teamCount, event, records = {}) {
+  return [...bracketDraw(event, records).seeds.slice(0, teamCount === 7 ? 1 : 2)];
 }
 
 function buildBracket(event, teamCount, firstMinute, records) {
-  const [first, second, a, b, c, d] = BRACKET_SEEDS[event];
+  const { prefix, seeds: [first, second, a, b, c, d] } = bracketDraw(event, records);
   const matches = [];
   const add = (round, label, home, away, homeMatch, awayMatch) => {
     const from = match => {
@@ -58,7 +70,7 @@ function buildBracket(event, teamCount, firstMinute, records) {
       return winner ? match[winner] : null;
     };
     const match = {
-      id: `bracket-${event}-${matches.length + 1}`, event, round, label,
+      id: `${prefix}-${matches.length + 1}`, event, round, label,
       startMinute: firstMinute + matches.length * MATCH_MINUTES[event],
       home: homeMatch ? from(homeMatch) : home, away: awayMatch ? from(awayMatch) : away,
       homeFrom: homeMatch?.id ?? null, awayFrom: awayMatch?.id ?? null,
