@@ -55,8 +55,8 @@
           <button type="button" class="button-primary" id="organizer-button">Unlock scorekeeper</button>
         </div>
 
-        <nav id="events" class="event-selector" aria-label="Events"></nav>
-        <div class="dashboard-columns">
+        <nav id="events" class="event-selector" aria-label="Scoreboard views"></nav>
+        <div class="dashboard-columns" id="event-dashboard">
           <section id="schedule" aria-labelledby="schedule-heading">
             <div class="section-heading">
               <div>
@@ -75,20 +75,58 @@
               <h2 id="standings-heading">Standings</h2>
               <span id="standings-event"></span>
             </div>
-            <table class="standings-table">
+            <table class="standings-table event-standings-table">
               <thead>
                 <tr>
                   <th scope="col"><span class="sr-only">Rank</span></th>
                   <th scope="col">Team</th>
                   <th scope="col"><abbr title="Wins">W</abbr></th>
                   <th scope="col"><abbr title="Losses">L</abbr></th>
+                  <th scope="col"><abbr title="Placement points">Pts</abbr></th>
                 </tr>
               </thead>
               <tbody id="standings-rows"></tbody>
             </table>
             <p class="standings-note" id="standings-note">Ranked by wins, then head-to-head results.</p>
+            <section class="tiebreak-section" id="event-tiebreak-section" aria-labelledby="event-tiebreak-heading" hidden>
+              <h3 id="event-tiebreak-heading">Mini-games</h3>
+              <div id="event-tiebreaks"></div>
+            </section>
           </section>
         </div>
+        <section id="overall-dashboard" aria-labelledby="overall-heading" hidden>
+          <div class="section-heading overall-heading">
+            <div>
+              <h2 id="overall-heading">Overall standings</h2>
+              <p>Each sport awards 15, 12, 9, 6, 3, and 0 points by placement.</p>
+            </div>
+          </div>
+          <div class="overall-events" id="overall-events"></div>
+          <section class="standings-panel" aria-labelledby="overall-points-heading">
+            <div class="standings-header">
+              <h2 id="overall-points-heading">Tournament points</h2>
+              <span id="overall-result"></span>
+            </div>
+            <table class="standings-table overall-table">
+              <thead>
+                <tr>
+                  <th scope="col"><span class="sr-only">Rank</span></th>
+                  <th scope="col">Team</th>
+                  <th scope="col"><span class="wide-label">Cornhole</span><abbr class="compact-label" title="Cornhole">Corn</abbr></th>
+                  <th scope="col">Darts</th>
+                  <th scope="col">Pool</th>
+                  <th scope="col">Total</th>
+                </tr>
+              </thead>
+              <tbody id="overall-rows"></tbody>
+            </table>
+            <p class="standings-note" id="overall-note">Totals include placement points already awarded.</p>
+            <section class="tiebreak-section" id="overall-tiebreak-section" aria-labelledby="overall-tiebreak-heading" hidden>
+              <h3 id="overall-tiebreak-heading">Overall mini-games</h3>
+              <div id="overall-tiebreaks"></div>
+            </section>
+          </section>
+        </section>
         <section class="teams-section" id="teams" aria-labelledby="teams-heading">
           <div class="section-heading">
             <div>

@@ -43,6 +43,7 @@
               <th scope="col">Team</th>
               <th scope="col"><abbr title="Wins">W</abbr></th>
               <th scope="col"><abbr title="Losses">L</abbr></th>
+              <th scope="col"><abbr title="Placement points">Pts</abbr></th>
             </tr>
           </thead>
           <tbody id="stream-standings"></tbody>
@@ -58,6 +59,27 @@
         <div class="stream-rounds" id="stream-rounds"></div>
       </section>
     </div>
+
+    <section class="stream-panel stream-overall" id="stream-overall" aria-labelledby="stream-overall-title" hidden>
+      <div class="stream-panel-heading">
+        <h2 id="stream-overall-title">Standings</h2>
+        <p id="stream-overall-progress"></p>
+      </div>
+      <table class="stream-table">
+        <thead>
+          <tr>
+            <th scope="col"><span aria-label="Rank">#</span></th>
+            <th scope="col">Team</th>
+            <th scope="col">Cornhole</th>
+            <th scope="col">Darts</th>
+            <th scope="col">Pool</th>
+            <th scope="col">Total</th>
+          </tr>
+        </thead>
+        <tbody id="stream-overall-rows"></tbody>
+      </table>
+      <p class="stream-standing-note" id="stream-overall-note"></p>
+    </section>
   </main>
 </body>
 </html>

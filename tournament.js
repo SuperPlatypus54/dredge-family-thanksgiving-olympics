@@ -15,6 +15,7 @@ export const TEAMS = TEAM_IDS.map(id => ({ id, players: [] }));
 
 export const CORNHOLE_TARGET = 11;
 export const CORNHOLE_MAX_FRAME = 12;
+export const PLACEMENT_POINTS = [15, 12, 9, 6, 3, 0];
 
 export const TOURNAMENT_START = 11 * 60 + 30;
 export const DINNER_START = 15 * 60 + 30;
@@ -268,53 +269,126 @@ export function getMatchState(match, record) {
   return state;
 }
 
-function rankGroup(group, defeated, firstRank) {
-  if (group.length === 1) return [{ ...group[0], rank: firstRank }];
+function groupsByScore(entries, score) {
+  const groups = new Map();
+  for (const entry of [...entries].sort((first, second) => score(second) - score(first))) {
+    const value = score(entry);
+    if (!groups.has(value)) groups.set(value, []);
+    groups.get(value).push(entry);
+  }
+  return [...groups.values()];
+}
 
+function headToHeadCount(results) {
+  const counts = new Map();
+  for (const {winner, loser} of results) {
+    const pair = `${winner}:${loser}`;
+    counts.set(pair, (counts.get(pair) ?? 0) + 1);
+  }
+  return (winner, loser) => counts.get(`${winner}:${loser}`) ?? 0;
+}
+
+function rankGroups(groups, firstRank, context) {
+  const ranked = [];
+  for (const group of groups) ranked.push(...rankGroup(group, firstRank + ranked.length, context));
+  return ranked;
+}
+
+function rankGroup(group, rank, context) {
+  if (group.length === 1) return [{ ...group[0], rank }];
+
+  const { scope, winsAgainst, meetings, complete, decisions, tiebreaks } = context;
   const headToHead = group.map(row => {
-    const opponents = group.filter(opponent => opponent.team.id !== row.team.id);
-    const wins = opponents.filter(opponent => defeated.get(row.team.id).has(opponent.team.id)).length;
-    const losses = opponents.filter(opponent => defeated.get(opponent.team.id).has(row.team.id)).length;
-    return { row, wins, complete: wins + losses === opponents.length };
+    const team = row.team.id;
+    const opponents = group.filter(peer => peer.team.id !== team);
+    let wins = 0;
+    let played = 0;
+    for (const { team: opponent } of opponents) {
+      const directWins = winsAgainst(team, opponent.id);
+      wins += directWins;
+      played += directWins + winsAgainst(opponent.id, team);
+    }
+    return { row, wins, complete: played === opponents.length * meetings };
   });
-  if (headToHead.some(score => !score.complete)) {
-    return group.map(row => ({ ...row, rank: firstRank }));
+  if (headToHead.every(result => result.complete)) {
+    const groups = groupsByScore(headToHead, result => result.wins);
+    if (groups.length > 1) return rankGroups(groups.map(places => places.map(result => result.row)), rank, context);
   }
 
-  headToHead.sort((first, second) => second.wins - first.wins);
-  let rank = firstRank;
-  return headToHead.map(({ row, wins }, index) => {
-    if (index > 0 && wins !== headToHead[index - 1].wins) rank = firstRank + index;
-    return { ...row, rank };
+  if (complete) {
+    const teams = group.map(row => row.team);
+    const id = `${scope}:${rank}:${teams.map(team => team.id).sort().join('')}`;
+    const selected = group.find(row => row.team.id === decisions[id]);
+    tiebreaks.push({ id, scope, rank, teams, winner: selected?.team.id ?? null });
+    if (selected) {
+      return [{ ...selected, rank }, ...rankGroup(group.filter(row => row !== selected), rank + 1, context)];
+    }
+  }
+  return group.map(row => ({ ...row, rank }));
+}
+
+function eventResults(matches, records) {
+  return matches.flatMap(match => {
+    const { winner } = getMatchState(match, records[match.id]);
+    return winner ? [{ winner: match[winner], loser: winner === 'home' ? match.away : match.home }] : [];
   });
 }
 
-export function getStandings(event, records = {}, teams = TEAMS) {
+function standingsResult(rows, complete, tiebreaks) {
+  const final = complete && tiebreaks.every(tie => tie.winner);
+  const winner = complete && rows[0]?.rank === 1 && rows[1]?.rank !== 1 ? rows[0].team : null;
+  return { rows, complete, final, winner };
+}
+
+function rankEvent(event, matches, results, teams, decisions, tiebreaks) {
   const rows = teams.map(team => ({ team, wins: 0, losses: 0 }));
   const rowsByTeam = new Map(rows.map(row => [row.team.id, row]));
-  const defeated = new Map(teams.map(team => [team.id, new Set()]));
-
-  for (const match of getMatches(teams.length)) {
-    if (match.event !== event) continue;
-    const { winner } = getMatchState(match, records[match.id]);
-    if (!winner) continue;
-
-    const winningTeam = match[winner];
-    const losingTeam = winner === 'home' ? match.away : match.home;
-    rowsByTeam.get(winningTeam).wins++;
-    rowsByTeam.get(losingTeam).losses++;
-    defeated.get(winningTeam).add(losingTeam);
+  for (const { winner, loser } of results) {
+    rowsByTeam.get(winner).wins++;
+    rowsByTeam.get(loser).losses++;
   }
 
-  const groups = new Map();
-  for (const row of rows.sort((first, second) => second.wins - first.wins)) {
-    if (!groups.has(row.wins)) groups.set(row.wins, []);
-    groups.get(row.wins).push(row);
-  }
-
-  const standings = [];
-  for (const group of groups.values()) {
-    standings.push(...rankGroup(group, defeated, standings.length + 1));
-  }
+  const complete = matches.length > 0 && results.length === matches.length;
+  const ranked = rankGroups(groupsByScore(rows, row => row.wins), 1, {
+    scope: event, winsAgainst: headToHeadCount(results), meetings: 1, complete, decisions, tiebreaks,
+  });
+  const standings = standingsResult(ranked, complete, tiebreaks);
+  standings.rows = ranked.map(row => ({
+    ...row,
+    points: standings.final ? (PLACEMENT_POINTS[row.rank - 1] ?? 0) : null,
+  }));
   return standings;
+}
+
+export function getStandings(event, records = {}, teams = TEAMS) {
+  const matches = getMatches(teams.length).filter(match => match.event === event);
+  return rankEvent(event, matches, eventResults(matches, records), teams, {}, []).rows;
+}
+
+export function getTournamentStandings(records = {}, teams = TEAMS, tiebreaks = {}) {
+  const matches = getMatches(teams.length);
+  const matchesByEvent = EVENTS.map(({ id }) => matches.filter(match => match.event === id));
+  const results = matchesByEvent.map(fixtures => eventResults(fixtures, records));
+  const activeTies = [];
+  const events = Object.fromEntries(EVENTS.map(({ id }, index) => {
+    const ties = [];
+    const event = rankEvent(id, matchesByEvent[index], results[index], teams, tiebreaks, ties);
+    activeTies.push(...ties);
+    return [id, event];
+  }));
+
+  const rows = teams.map(team => {
+    const placements = Object.fromEntries(EVENTS.map(({ id }) => [
+      id, events[id].rows.find(row => row.team.id === team.id).points,
+    ]));
+    const points = Object.values(placements).reduce((total, value) => total + (value ?? 0), 0);
+    return { team, points, events: placements };
+  });
+  const complete = EVENTS.every(({ id }) => events[id].final);
+  const overallTies = [];
+  const ranked = rankGroups(groupsByScore(rows, row => row.points), 1, {
+    scope: 'overall', winsAgainst: headToHeadCount(results.flat()), meetings: EVENTS.length,
+    complete, decisions: tiebreaks, tiebreaks: overallTies,
+  });
+  return { events, overall: standingsResult(ranked, complete, overallTies), tiebreaks: [...activeTies, ...overallTies] };
 }
