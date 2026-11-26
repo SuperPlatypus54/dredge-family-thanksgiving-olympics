@@ -1,0 +1,102 @@
+.draw-editor > .draw-controls {
+  min-width: 0;
+  display: grid;
+  gap: 13px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.draw-editor[aria-busy="true"] > .draw-controls {
+  opacity: 0.68;
+}
+
+.draw-editor p {
+  margin: 0;
+}
+
+.draw-editor .draw-instructions,
+.draw-editor .draw-matchup {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.draw-editor .draw-teams {
+  display: grid;
+  gap: 6px;
+}
+
+.draw-editor .draw-row {
+  display: grid;
+  grid-template-columns: 3.4rem repeat(2, minmax(0, 1fr));
+  align-items: center;
+  gap: 7px;
+}
+
+.draw-editor .draw-team,
+.draw-editor label {
+  font-size: 0.84rem;
+  font-weight: 750;
+}
+
+.draw-editor select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 6px 3px 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background-color: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 1rem;
+}
+
+.draw-editor select:focus-visible,
+.draw-editor .draw-save:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.draw-editor .draw-summary {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f7ede4;
+}
+
+.draw-editor .draw-summary[hidden] {
+  display: none;
+}
+
+.draw-editor .draw-error {
+  color: #8b251b;
+  font-size: 0.86rem;
+  font-weight: 650;
+}
+
+.draw-editor .draw-save {
+  min-height: 44px;
+  justify-self: start;
+}
+
+.draw-editor .draw-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  clip-path: inset(50%);
+  overflow: hidden;
+}
+
+@media (max-width: 380px) {
+  .draw-editor .draw-row {
+    grid-template-columns: 2.8rem repeat(2, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  .draw-editor .draw-team {
+    font-size: 0.75rem;
+  }
+}

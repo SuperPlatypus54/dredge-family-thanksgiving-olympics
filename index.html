@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#311e30">
+    <meta name="description" content="Live scores, standings, and round-robin schedules for the Dredge Family Thanksgiving Olympics.">
+    <title>Dredge Family Thanksgiving Olympics</title>
+    <link rel="icon" href="/dredge-family-thanksgiving-olympics/assets/favicon.png" type="image/png">
+    <link rel="stylesheet" href="/dredge-family-thanksgiving-olympics/styles.css">
+    <link rel="stylesheet" href="/dredge-family-thanksgiving-olympics/scoring.css">
+    <link rel="stylesheet" href="/dredge-family-thanksgiving-olympics/draw.css">
+    <script type="module" src="/dredge-family-thanksgiving-olympics/app.js"></script>
+    <meta name="scoreboard-api-origin" content="https://dredge-family-thanksgiving-olympics.active-otter-5137.chatgpt.site">
+</head>
+  <body data-view="spectator">
+    <header class="site-header">
+      <div class="shell header-inner">
+        <a class="brand" href="/dredge-family-thanksgiving-olympics/" aria-label="Dredge Family scoreboard">
+          <span class="family-mark" aria-hidden="true">DF</span>
+          <span>Dredge Family</span>
+        </a>
+        <nav class="header-links" aria-label="Main navigation">
+          <a href="/dredge-family-thanksgiving-olympics/master-card.pdf" target="_blank" rel="noopener">Master card <span aria-hidden="true">↗</span></a>
+          <a class="view-link" id="view-link" href="/dredge-family-thanksgiving-olympics/score/">Scorekeeper <span aria-hidden="true">↗</span></a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="page-title">
+        <div class="shell hero-inner">
+          <div class="hero-copy">
+            <p class="hero-edition">Dredge Family <span aria-hidden="true"></span> 2026</p>
+            <h1 id="page-title">Thanksgiving<br>Olympics</h1>
+            <p class="hero-description">Cornhole, darts &amp; pool</p>
+          </div>
+          <div class="hero-progress">
+            <div class="connection" id="connection" role="status">
+              <span class="connection-dot" aria-hidden="true"></span>
+              <span data-connection-label>Connecting</span>
+            </div>
+            <div class="progress-text" id="overall-progress"><strong>0</strong> / 45 matches</div>
+          </div>
+        </div>
+      </section>
+
+      <div class="shell dashboard">
+        <h1 class="sr-only spectator-only">Dredge Family Thanksgiving Olympics</h1>
+        <div class="organizer-banner" id="organizer-banner" hidden>
+          <div>
+            <strong>Scorekeeper</strong>
+            <span id="organizer-message">Unlock with the PIN printed in the server terminal.</span>
+          </div>
+          <button type="button" class="button-primary" id="organizer-button">Unlock scorekeeper</button>
+        </div>
+
+        <nav id="events" class="event-selector" aria-label="Events"></nav>
+        <div class="dashboard-columns">
+          <section id="schedule" aria-labelledby="schedule-heading">
+            <div class="section-heading">
+              <div>
+                <h2 id="schedule-heading">Match schedule</h2>
+                <p id="event-rule"></p>
+              </div>
+              <p class="schedule-count" id="event-progress"></p>
+            </div>
+            <div id="rounds" class="round-selector" aria-label="Filter by round"></div>
+            <div id="fixtures" class="fixtures"></div>
+          </section>
+
+          <section class="standings-panel" aria-labelledby="standings-heading">
+            <div class="standings-header">
+              <h2 id="standings-heading">Standings</h2>
+              <span id="standings-event"></span>
+            </div>
+            <table class="standings-table">
+              <thead>
+                <tr>
+                  <th scope="col"><span class="sr-only">Rank</span></th>
+                  <th scope="col">Team</th>
+                  <th scope="col"><abbr title="Wins">W</abbr></th>
+                  <th scope="col"><abbr title="Losses">L</abbr></th>
+                </tr>
+              </thead>
+              <tbody id="standings-rows"></tbody>
+            </table>
+            <p class="standings-note" id="standings-note">Ranked by wins, then head-to-head results.</p>
+          </section>
+        </div>
+        <section class="teams-section" id="teams" aria-labelledby="teams-heading">
+          <div class="section-heading">
+            <div>
+              <h2 id="teams-heading">The teams</h2>
+              <p id="teams-description">Team names will appear after the hat draw.</p>
+            </div>
+            <p class="schedule-count" id="player-count">12 players</p>
+          </div>
+          <div id="team-list" class="teams-grid"></div>
+          <p class="rotation-note" id="roster-note" hidden></p>
+        </section>
+        <div class="spectator-tools spectator-only">
+          <div class="connection" id="spectator-connection" role="status">
+            <span class="connection-dot" aria-hidden="true"></span>
+            <span data-connection-label>Connecting</span>
+          </div>
+          <nav aria-label="Display options">
+            <a href="/dredge-family-thanksgiving-olympics/master-card.pdf" target="_blank" rel="noopener">Master scorecard</a>
+            <a href="/dredge-family-thanksgiving-olympics/stream/">TV view</a>
+            <button type="button" class="display-fullscreen" id="spectator-fullscreen" title="Shortcut: F" hidden>Full screen</button>
+          </nav>
+        </div>
+      </div>
+    </main>
+
+    <dialog id="match-dialog" aria-labelledby="dialog-title">
+      <div class="dialog-heading">
+        <div>
+          <p id="dialog-context"></p>
+          <h2 id="dialog-title">Match details</h2>
+        </div>
+        <button type="button" class="dialog-close" id="dialog-close" aria-label="Close">×</button>
+      </div>
+      <div id="dialog-content"></div>
+    </dialog>
+
+    <noscript>
+      <p class="shell noscript">Enable JavaScript to see the schedule and live scores.</p>
+    </noscript>
+  </body>
+</html>
