@@ -1,5 +1,8 @@
 import { setupFullscreen, watchScoreboard } from './display.js';
-import { EVENTS, TEAMS, getLineup, getMatches, getMatchState, getStandings } from './tournament.js';
+import {
+  CATCH_UP_START, DINNER_START, EVENTS, TEAMS, TOURNAMENT_START,
+  formatScheduleTime, getLineup, getMatches, getMatchState, getStandings,
+} from './tournament.js';
 
 const order = ['darts', 'pool', 'cornhole'].map(id => EVENTS.find(event => event.id === id));
 const rotationMs = 15_000;
@@ -9,6 +12,7 @@ const board = find('stream-board');
 const connection = find('stream-connection');
 const nextGame = find('stream-next');
 const progress = find('stream-time');
+const day = find('stream-day');
 const sides = ['home', 'away'];
 const statusLabels = { upcoming: 'Scheduled', live: 'In play', final: 'Final' };
 let index = 0;
@@ -19,6 +23,10 @@ function teamChip(id) {
 }
 
 function matchCard(match, result) {
+  const timed = Number.isInteger(match.startMinute);
+  const timing = timed
+    ? `<p class="stream-match-time">${formatScheduleTime(match.startMinute)}</p>`
+    : '';
   const rows = sides.map((side, sideIndex) => {
     const players = getLineup(match, side, state.draw);
     const name = players.join(' &amp; ') || `Team ${match[side]}`;
@@ -32,8 +40,8 @@ function matchCard(match, result) {
       <strong class="stream-points">${won ? '<span class="stream-check" aria-label="Winner">✓</span>' : ''}${points}</strong>
     </div>`;
   });
-  return `<div class="stream-match is-${result.status}" title="${statusLabels[result.status]}" data-match="${match.id}">
-    ${rows.join('')}
+  return `<div class="stream-match is-${result.status}${timed ? ' is-timed' : ''}" title="${statusLabels[result.status]}" data-match="${match.id}">
+    ${timing}${rows.join('')}
   </div>`;
 }
 
@@ -84,10 +92,13 @@ function render() {
   const teams = state.draw?.teams ?? TEAMS;
   const matches = getMatches(teams.length).filter(match => match.event === event.id);
   const completed = matches.filter(match => getMatchState(match, state.records[match.id]).status === 'final').length;
+  const timed = matches.some(match => Number.isInteger(match.startMinute));
 
   document.body.dataset.event = event.id;
+  day.hidden = !timed;
   find('stream-event').textContent = event.name;
-  find('stream-rule').textContent = `${event.rule} · 2v2 round robin`;
+  const scheduleNote = timed && event.id === 'cornhole' ? ' · Flexible starts' : '';
+  find('stream-rule').textContent = `${event.rule} · 2v2 round robin${scheduleNote}`;
   find('stream-played').textContent = `${completed} / ${matches.length} played`;
   renderStandings(event, teams, completed, matches.length);
   renderSchedule(matches, teams);
@@ -108,6 +119,9 @@ function tick() {
   progress.style.transform = `scaleX(${remaining / rotationMs})`;
 }
 
+find('stream-start').textContent = formatScheduleTime(TOURNAMENT_START);
+find('stream-catch-up').textContent = formatScheduleTime(CATCH_UP_START);
+find('stream-dinner').textContent = formatScheduleTime(DINNER_START);
 setupFullscreen(null);
 render();
 tick();

@@ -212,6 +212,9 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .section-heading h2, .standings-header h2, .dialog-heading h2 { font: 800 2.45rem/.98 var(--display); margin: 0; }
 .section-heading p { color: var(--muted); font-size: .87rem; margin: 5px 0 0; }
 .section-heading .schedule-count { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.schedule-hours { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 0 0 10px; color: var(--muted); font-size: .87rem; }
+.schedule-hours span { white-space: nowrap; }
+.schedule-hours time { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
 .round-selector {
   display: flex;
   flex-wrap: wrap;
@@ -279,6 +282,8 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .fixture-team small { display: block; color: var(--muted); font-size: .72rem; }
 .fixture-score { text-align: center; font: 700 1.16rem/1 var(--display); color: var(--muted); white-space: nowrap; }
 .fixture-score b { font-size: 1.45rem; color: var(--ink); }
+.fixture-meta { display: grid; justify-items: end; gap: 3px; }
+.fixture-meta time { color: var(--ink); font-size: .9rem; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .match-status { padding: 4px 6px; border-radius: 4px; justify-self: end; font-size: .73rem; font-weight: 700; white-space: nowrap; }
 .match-status.upcoming { color: #6c5a63; background: #f1e8de; }
 .match-status.live { color: #8a371c; background: #f8dfc8; }

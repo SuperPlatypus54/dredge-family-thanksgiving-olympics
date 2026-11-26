@@ -16,6 +16,18 @@ export const TEAMS = TEAM_IDS.map(id => ({ id, players: [] }));
 export const CORNHOLE_TARGET = 11;
 export const CORNHOLE_MAX_FRAME = 12;
 
+export const TOURNAMENT_START = 11 * 60 + 30;
+export const DINNER_START = 15 * 60 + 30;
+const ROUND_MINUTES = 45;
+const DARTS_AND_BAGS_MINUTES = 8;
+const POOL_MINUTES = 6;
+const POOL_OFFSET = 3 * DARTS_AND_BAGS_MINUTES + 1;
+
+export function formatScheduleTime(minute) {
+  const hour = Math.floor(minute / 60);
+  return `${hour % 12 || 12}:${String(minute % 60).padStart(2, '0')} ${hour < 12 ? 'AM' : 'PM'}`;
+}
+
 export const EVENTS = [
   { id: 'cornhole', name: 'Cornhole', rule: `First to ${CORNHOLE_TARGET}+` },
   { id: 'darts', name: 'Darts', rule: 'Cricket' },
@@ -67,7 +79,34 @@ function makeSchedule(rounds, roundOrder = {}) {
   );
 }
 
-export const MATCHES = makeSchedule(SIX_TEAM_ROUNDS, SIX_TEAM_ROUND_ORDER);
+export const CATCH_UP_START = TOURNAMENT_START + (SIX_TEAM_ROUNDS.length - 1) * ROUND_MINUTES
+  + POOL_OFFSET + 3 * POOL_MINUTES;
+
+function planSixTeamSchedule() {
+  const fixtures = makeSchedule(SIX_TEAM_ROUNDS, SIX_TEAM_ROUND_ORDER);
+  const timed = [];
+  for (let round = 1; round <= SIX_TEAM_ROUNDS.length; round++) {
+    const start = TOURNAMENT_START + (round - 1) * ROUND_MINUTES;
+    const eventFixtures = event => fixtures.filter(match => match.round === round && match.event === event);
+    const bags = eventFixtures('cornhole');
+
+    eventFixtures('darts').forEach((darts, slot) => {
+      const startMinute = start + slot * DARTS_AND_BAGS_MINUTES;
+      const dartsTeams = [darts.home, darts.away];
+      const bagIndex = bags.findIndex(match => !dartsTeams.includes(match.home) && !dartsTeams.includes(match.away));
+      if (bagIndex < 0) throw new Error(`Round ${round} has no bags match available alongside ${darts.id}.`);
+      const [bag] = bags.splice(bagIndex, 1);
+      timed.push({ ...darts, startMinute }, { ...bag, startMinute });
+    });
+
+    eventFixtures('pool').forEach((pool, slot) => {
+      timed.push({ ...pool, startMinute: start + POOL_OFFSET + slot * POOL_MINUTES });
+    });
+  }
+  return EVENTS.flatMap(({ id }) => timed.filter(match => match.event === id));
+}
+
+export const MATCHES = planSixTeamSchedule();
 const SEVEN_TEAM_MATCHES = makeSchedule(SEVEN_TEAM_ROUNDS);
 
 export function getMatches(teamCount) {

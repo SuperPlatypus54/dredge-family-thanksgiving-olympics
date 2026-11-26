@@ -1,4 +1,7 @@
-import { EVENTS, TARGETS, TEAMS, getLineup, getMatches, getMatchState, getStandings, getSubstitution } from './tournament.js';
+import {
+  CATCH_UP_START, DINNER_START, EVENTS, TARGETS, TEAMS, TOURNAMENT_START,
+  formatScheduleTime, getLineup, getMatches, getMatchState, getStandings, getSubstitution,
+} from './tournament.js';
 import { createDrawEditor } from './draw-editor.js';
 import { setupFullscreen, watchScoreboard } from './display.js';
 import { createScoreEditor } from './score-editor.js';
@@ -35,6 +38,12 @@ const substituteNote = match => {
 const chip = id => `<span class="team-chip team-${id}" aria-label="Team ${id}">${id}</span>`;
 const badge = status => `<span class="match-status ${status}">${statusLabel[status]}</span>`;
 
+function timeMarkup(minute) {
+  const hour = String(Math.floor(minute / 60)).padStart(2, '0');
+  const minutes = String(minute % 60).padStart(2, '0');
+  return `<time datetime="${hour}:${minutes}">${formatScheduleTime(minute)}</time>`;
+}
+
 function renderOrganizer() {
   if (!organizer) return;
   $('organizer-banner').hidden = !organizer;
@@ -63,8 +72,10 @@ function renderMatch(match) {
   const center = score.status !== 'upcoming' && match.event !== 'pool'
     ? `<b>${score.scores[0]}</b> : <b>${score.scores[1]}</b>`
     : 'vs';
+  const time = Number.isInteger(match.startMinute) ? timeMarkup(match.startMinute) : '';
   return `<button type="button" class="fixture" data-match="${match.id}" title="${organizer && state.draw ? 'Score match' : 'Match details'}">
-    ${sides[0]}<span class="fixture-score">${center}</span>${sides[1]}${badge(score.status)}
+    ${sides[0]}<span class="fixture-score">${center}</span>${sides[1]}
+    <span class="fixture-meta">${time}${badge(score.status)}</span>
     ${note ? `<span class="fixture-note">${note}</span>` : ''}
   </button>`;
 }
@@ -122,7 +133,10 @@ function render() {
   if (focusedRound) $('rounds').querySelector(`[data-round="${focusedRound}"]`)?.focus({ preventScroll: true });
 
   const completed = finals(matches);
-  $('event-rule').textContent = `2v2 round robin · ${event.rule}`;
+  const timed = matches.some(match => Number.isInteger(match.startMinute));
+  $('schedule-hours').hidden = !timed;
+  const flexible = timed && event.id === 'cornhole' ? ' · Flexible times' : '';
+  $('event-rule').textContent = `2v2 round robin · ${event.rule}${flexible}`;
   $('event-progress').textContent = `${completed} / ${matches.length} played`;
   const allMatches = currentMatches();
   $('overall-progress').innerHTML = `<strong>${finals(allMatches)}</strong> / ${allMatches.length} matches`;
@@ -254,7 +268,8 @@ function openMatch(match) {
   if (organizer && !token) return unlock(() => openMatch(match));
   if (organizer && !state.draw) return openDraw();
   const event = EVENTS.find(item => item.id === match.event);
-  showDialog(organizer ? 'Score match' : 'Match details', `${event.name} · Round ${match.round}`);
+  const planned = Number.isInteger(match.startMinute) ? ` · Planned ${formatScheduleTime(match.startMinute)}` : '';
+  showDialog(organizer ? 'Score match' : 'Match details', `${event.name} · Round ${match.round}${planned}`);
   if (organizer) {
     const draw = state.draw;
     content.append(createScoreEditor({
@@ -322,6 +337,9 @@ $('events').innerHTML = EVENTS.map(event => `<button type="button" class="event-
   <span class="event-label"><strong>${event.name}</strong><small>${event.rule}</small></span>
   <span class="event-count" aria-hidden="true"></span>
 </button>`).join('');
+$('schedule-hours').innerHTML = [
+  ['Start', TOURNAMENT_START], ['Catch-up', CATCH_UP_START], ['Dinner', DINNER_START],
+].map(([label, minute]) => `<span>${label} ${timeMarkup(minute)}</span>`).join('');
 if (organizer) {
   $('view-link').href = pageUrl('');
   $('view-link').innerHTML = 'Spectator view <span aria-hidden="true">↗</span>';
